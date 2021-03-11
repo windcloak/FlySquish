@@ -8,18 +8,16 @@ let isWin = false
 const canvas_width = 800
 const canvas_height = 600
 const spriteX = 75
-let instrument, synthJSON, phaser, lfo
-const duoSynth = new Tone.DuoSynth().toDestination()
-const synth = new Tone.MembraneSynth().toDestination()
 
-let mergedData, melodyPart
+var synth
+var start
+var stop
+var pause
+var slider
+var startPart
+var chord
+var probability
 
-const {
-  getBarsBeats,
-  addTimes,
-  getTransportTimes,
-  mergeMusicDataPart,
-} = toneRhythm.toneRhythm(Tone.Time) // both `toneRhythm` and `Tone.Time` are available globally from imports above
 
 function preload() {
   for (var i = 0; i < count; i++) {
@@ -44,43 +42,27 @@ function setup() {
   stroke(color(255, 255, 255))
   textAlign(CENTER, CENTER)
 
-  // create synth
-  instrument = new Tone.MembraneSynth();
-  synthJSON = {
-    pitchDecay: 0.2,
-    octaves: 1.2,
-    oscillator: {
-      type: 'sine',
+  synth = make_poly().instrument
+  // the more items in the array the shorter their
+  // duration
+  var score = [
+    [
+      ['A4', 'B4'],
+      ['C4', 'C4', 'D4'],
+    ],
+    ['G4', 'A4', 'b4', ['e4', 'e4', 'e4', 'e4']],
+  ]
+  score = ['a3', [['b3', 'd3'], 'g3'], [['d4', 'e4'], 'd4']] // added this from class!
+  // array of notes, subdivision
+  sequence = new Tone.Sequence(
+    (time, note) => {
+      synth.triggerAttackRelease(note, '8n', time)
     },
-    envelope: {
-      attack: 0.001,
-      decay: 0.8,
-      sustain: 0.01,
-      release: 1.4,
-      attackCurve: 'exponential',
-    },
-  }
+    score,
+    2,
+  )
 
-  instrument.set(synthJSON)
-
-  
-  phaser = new Tone.Phaser({
-    baseFrequency: 250,
-    octaves: 3.1,
-    sensitivity: 0,
-    Q: 2,
-    gain: 5,
-    rolloff: -24,
-    follower: {
-      attack: 0.3,
-      release: 0.1,
-    },
-    wet: 0.5,
-  }).toDestination()
-  instrument.connect(phaser)
-
-  // make connections
-  instrument.connect(Tone.Destination)
+  Tone.Transport.start()
 }
 
 function mouseClicked() {
@@ -97,6 +79,7 @@ function draw() {
   for (var i = 0; i < count; i++) {
     guy[i].draw()
   }
+
   playMusic()
 }
 
@@ -218,31 +201,59 @@ function endGame() {
 }
 
 function playMusic() {
+  sequence.start()
+}
 
-  const now = Tone.now()
-    const loopA = new Tone.Loop(time => {
-      // instrument.triggerAttackRelease("C4", "8n", now)
-      // instrument.triggerAttackRelease("E4", "8n", now + 0.5)
-    instrument.triggerAttackRelease('C4', '8n')
-    instrument.triggerAttackRelease('E4', '16n')
-    instrument.triggerAttackRelease('G4', '16n')
-    instrument.triggerAttackRelease('B4', '8n')
-    instrument.triggerAttackRelease('A4', '2n') // last note plays longest
-    }, "2n").start(0);
+function make_poly() {
+  // create synth
+  var instrument = new Tone.FMSynth()
+  var synthJSON = {
+    pitchDecay: 0.2,
+    octaves: 1.2,
+    oscillator: {
+      type: 'sine',
+    },
+    envelope: {
+      attack: 0.001,
+      decay: 0.8,
+      sustain: 0.01,
+      release: 1.4,
+      attackCurve: 'exponential',
+    },
+  }
 
-    // duoSynth.triggerAttackRelease("C4", "2n");
-    instrument.sync()
+  instrument.set(synthJSON)
 
-    Tone.Transport.bpm.value = 80
+  var effect1, effect2, effect3
 
-    // instrument.triggerAttackRelease('C4', '8n', 0)
-    // instrument.triggerAttackRelease('E4', '16n', '8n')
-    // instrument.triggerAttackRelease('G4', '16n', '8n')
-    // instrument.triggerAttackRelease('B4', '8n', '4n')
-    // instrument.triggerAttackRelease('A4', '2n', '8n') // last note plays longest
-    Tone.Transport.start()
+  phaser = new Tone.Phaser({
+    baseFrequency: 250,
+    octaves: 3.1,
+    sensitivity: 0,
+    Q: 2,
+    gain: 5,
+    rolloff: -24,
+    follower: {
+      attack: 0.3,
+      release: 0.1,
+    },
+    wet: 0.5,
+  }).toDestination()
+  instrument.connect(phaser)
 
-    // ramp the bpm to 10 over 3 seconds
-    // Tone.Transport.bpm.rampTo(10, 3);
-  
+  // make connections
+  instrument.connect(Tone.Destination)
+
+  // define deep dispose function
+  function deep_dispose() {
+    if (instrument != undefined && instrument != null) {
+      instrument.dispose()
+      instrument = null
+    }
+  }
+
+  return {
+    instrument: instrument,
+    deep_dispose: deep_dispose,
+  }
 }
