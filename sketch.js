@@ -3,17 +3,19 @@ let count = 20
 let speed = 1
 let score = 0
 let timer = 30
+let isStart = true
 let isEnd = false // did the game end
 let isWin = false
 const canvas_width = 800
 const canvas_height = 600
 const spriteX = 75
 
-let synth
+let synth, score2, sequence, sequence2
 var startPart
 var chord
 
 Tone.Transport.bpm.value = 10
+const noiseSynth = new Tone.MembraneSynth().toDestination()
 
 function preload() {
   for (var i = 0; i < count; i++) {
@@ -48,7 +50,7 @@ function setup() {
     ],
     ['G4', 'A4', 'b4', ['e4', 'e4', 'e4', 'e4']],
   ]
-  score = ['a3', [['b3', 'd3'], 'g3'], [['d4', 'e4'], 'd4']] // added this from class!
+  score2 = ['a3', [['b3', 'd3'], 'g3'], [['d4', 'e4'], 'd4']] // added this from class!
   // array of notes, subdivision
   sequence = new Tone.Sequence(
     (time, note) => {
@@ -58,7 +60,13 @@ function setup() {
     2,
   )
 
-
+  sequence2 = new Tone.Sequence(
+    (time, note) => {
+      synth.triggerAttackRelease(note, '8n', time)
+    },
+    score2,
+    2,
+  )
 
   Tone.Transport.start()
 }
@@ -71,14 +79,25 @@ function mouseClicked() {
 
 function draw() {
   background(204, 255, 255)
-  text(`SCORE: ${score}`, 100, 50)
-  countdown()
-  text(`COUNTDOWN: ${timer}`, 160, 90)
-  for (var i = 0; i < count; i++) {
-    guy[i].draw()
-  }
+  if (!isStart) {
+    text(`SCORE: ${score}`, 100, 50)
+    countdown()
+    text(`COUNTDOWN: ${timer}`, 160, 90)
+    for (var i = 0; i < count; i++) {
+      guy[i].draw()
+    }
 
-  playMusic()
+    playMusic()
+  } else {
+    text(`Press Spacebar to start Bug Squish Game`,  canvas_width/2, canvas_height/2)
+  }
+}
+
+function keyPressed() {
+  if (keyCode == 32) {
+    // space
+    isStart = false
+  }
 }
 
 function Walker(imageName, x, y, moving, isAlive) {
@@ -169,11 +188,11 @@ function Walker(imageName, x, y, moving, isAlive) {
       !isEnd &&
       this.isAlive
     ) {
-      synth.triggerAttackRelease("C2", "16n"); // squish sound
+      noiseSynth.triggerAttackRelease('D5', '16n') // squished bug
       this.moving = 0
       speed++
       score++
-      this.isAlive = false     
+      this.isAlive = false
     }
   }
 }
@@ -204,7 +223,11 @@ function playMusic() {
   if (frameCount % 60 == 0 && !isEnd) {
     Tone.Transport.bpm.value++
   }
-  sequence.start()
+  if (!isStart && !isEnd) sequence.start()
+}
+
+function playIntroMusic() {
+  if (isStart) sequence2.start()
 }
 
 function make_poly() {
