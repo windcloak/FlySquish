@@ -9,15 +9,11 @@ const canvas_width = 800
 const canvas_height = 600
 const spriteX = 75
 
-var synth
-var start
-var stop
-var pause
-var slider
+let synth
 var startPart
 var chord
-var probability
 
+Tone.Transport.bpm.value = 10
 
 function preload() {
   for (var i = 0; i < count; i++) {
@@ -61,6 +57,8 @@ function setup() {
     score,
     2,
   )
+
+
 
   Tone.Transport.start()
 }
@@ -171,10 +169,11 @@ function Walker(imageName, x, y, moving, isAlive) {
       !isEnd &&
       this.isAlive
     ) {
+      synth.triggerAttackRelease("C2", "16n"); // squish sound
       this.moving = 0
       speed++
       score++
-      this.isAlive = false
+      this.isAlive = false     
     }
   }
 }
@@ -201,6 +200,10 @@ function endGame() {
 }
 
 function playMusic() {
+  // increase bpm as game continues
+  if (frameCount % 60 == 0 && !isEnd) {
+    Tone.Transport.bpm.value++
+  }
   sequence.start()
 }
 
