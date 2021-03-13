@@ -1,5 +1,5 @@
 let guy = []
-let count = 20
+let count = 5
 let speed = 1
 let score = 0
 let timer = 30
@@ -10,9 +10,12 @@ const canvas_width = 800
 const canvas_height = 600
 const spriteX = 75
 
-let synth, intro_score, sequence_intro, sequence_gameover, player
-var startPart
-var chord
+let synth,
+  intro_score,
+  sequence_intro,
+  sequence_gameover,
+  win_score,
+  sequence_win
 
 Tone.Transport.bpm.value = 10
 const noiseSynth = new Tone.MembraneSynth().toDestination()
@@ -27,8 +30,6 @@ function preload() {
       true, // alive or not
     )
   }
-  player = new Tone.Player("game_over.wav").toDestination();
-  player.loop = false;
 }
 
 function setup() {
@@ -43,8 +44,8 @@ function setup() {
   textAlign(CENTER, CENTER)
 
   synth = make_poly().instrument
-  // the more items in the array the shorter their
-  // duration
+
+  // main theme
   var score = [
     [
       ['A4', 'B4'],
@@ -52,8 +53,18 @@ function setup() {
     ],
     ['G4', 'A4', 'b4', ['e4', 'e4', 'e4', 'e4']],
   ]
-  intro_score = ['c3', [['d3', 'e3'], 'g3'], ['d4', 'd4']] // intro
-  gameover_score = ['f#2', [['eb2',  'eb2'], ['d2', 'd2']],'c2'] // gameover
+
+  intro_score = ['c3', [['d3', 'e3'], 'g3'], ['d4', 'd4']] // intro theme
+  gameover_score = [
+    'f#2',
+    [
+      ['eb2', 'eb2'],
+      ['d2', 'd2'],
+    ],
+    'c2',
+  ] // gameover theme
+  win_score = ['a4', [['b#4', 'c4', 'b#4'], 'g3'], ['g4', 'g4']] // win theme
+
   // array of notes, subdivision
   sequence = new Tone.Sequence(
     (time, note) => {
@@ -77,7 +88,15 @@ function setup() {
       synth.triggerAttackRelease(note, '8n', time)
     },
     gameover_score,
-    0,
+    2,
+  )
+
+  sequence_win = new Tone.Sequence(
+    (time, note) => {
+      synth.triggerAttackRelease(note, '8n', time)
+    },
+    win_score,
+    2,
   )
 
   Tone.Transport.start()
@@ -91,7 +110,7 @@ function mouseClicked() {
 
 function draw() {
   background(204, 255, 255)
-  if (!isStart) {
+  if (!isStart && !isEnd) {
     text(`SCORE: ${score}`, 100, 50)
     countdown()
     text(`COUNTDOWN: ${timer}`, 160, 90)
@@ -101,12 +120,26 @@ function draw() {
 
     playMusic()
   } else if (isStart && !isEnd) {
-    text(`Press Spacebar to start Bug Squish Game`,  canvas_width/2, canvas_height/2)
+    text(
+      `Press Spacebar to start Bug Squish Game`,
+      canvas_width / 2,
+      canvas_height / 2,
+    )
     playIntroMusic()
-  } 
-  else if (isEnd && !isWin) {
-    text(`You lose! You didn't kill all the bugs! Your Score:  ${score}`,  canvas_width/2, canvas_height/2)
+  } else if (isEnd && !isWin) {
+    text(
+      `You lose! You didn't kill all the bugs! Your Score:  ${score}`,
+      canvas_width / 2,
+      canvas_height / 2,
+    )
     playGameoverMusic()
+  } else if (isEnd && isWin) {
+    text(
+      `You win! You squashed all the bugs!! Your Score:  ${score}`,
+      canvas_width / 2,
+      canvas_height / 2,
+    )
+    playWinMusic()
   }
 }
 
@@ -206,7 +239,7 @@ function Walker(imageName, x, y, moving, isAlive) {
       !isEnd &&
       this.isAlive
     ) {
-      noiseSynth.triggerAttackRelease('D5', '16n') // squished bug
+      noiseSynth.triggerAttackRelease('D5', '16n') // squished bug sound effect
       this.moving = 0
       speed++
       score++
@@ -222,12 +255,14 @@ function countdown() {
   }
   if (timer == 0 && !isWin) {
     text('GAME OVER', width / 2, height * 0.7)
+    isWin = false
     playGameoverMusic()
     endGame()
   }
   if (score == count) {
     text('YOU WIN', width / 2, height * 0.7)
     isWin = true
+    playWinMusic()
     endGame()
   }
 }
@@ -237,27 +272,26 @@ function endGame() {
   speed = 0
 }
 
+// Main theme
 function playMusic() {
   // increase bpm as game continues
   if (frameCount % 60 == 0 && !isEnd) {
     Tone.Transport.bpm.value++
   }
-  if (!isStart && !isEnd)
-    sequence.start()
-  else
-    sequence.stop()
+  if (!isStart && !isEnd) sequence.start()
+  else sequence.stop()
 }
 
 function playIntroMusic() {
-  if (isStart) sequence_intro.start()
+  sequence_intro.start()
 }
 
 function playGameoverMusic() {
-  sequence.stop()
-  if (isEnd && !isWin) {
-    player.start();
-  }
-    // sequence_gameover.start()
+  sequence_gameover.start()
+}
+
+function playWinMusic() {
+  sequence_win.start()
 }
 
 function make_poly() {
@@ -279,8 +313,6 @@ function make_poly() {
   }
 
   instrument.set(synthJSON)
-
-  var effect1, effect2, effect3
 
   phaser = new Tone.Phaser({
     baseFrequency: 250,
