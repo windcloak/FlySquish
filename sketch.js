@@ -10,7 +10,7 @@ const canvas_width = 800
 const canvas_height = 600
 const spriteX = 75
 
-let synth, score2, sequence, sequence2
+let synth, intro_score, sequence_intro, sequence_gameover, player
 var startPart
 var chord
 
@@ -27,6 +27,8 @@ function preload() {
       true, // alive or not
     )
   }
+  player = new Tone.Player("game_over.wav").toDestination();
+  player.loop = false;
 }
 
 function setup() {
@@ -50,7 +52,8 @@ function setup() {
     ],
     ['G4', 'A4', 'b4', ['e4', 'e4', 'e4', 'e4']],
   ]
-  score2 = ['a3', [['b3', 'd3'], 'g3'], [['d4', 'e4'], 'd4']] // added this from class!
+  intro_score = ['c3', [['d3', 'e3'], 'g3'], ['d4', 'd4']] // intro
+  gameover_score = ['f#2', [['eb2',  'eb2'], ['d2', 'd2']],'c2'] // gameover
   // array of notes, subdivision
   sequence = new Tone.Sequence(
     (time, note) => {
@@ -60,12 +63,21 @@ function setup() {
     2,
   )
 
-  sequence2 = new Tone.Sequence(
+  sequence_intro = new Tone.Sequence(
     (time, note) => {
       synth.triggerAttackRelease(note, '8n', time)
     },
-    score2,
+    intro_score,
     2,
+  )
+
+  // Game over
+  sequence_gameover = new Tone.Sequence(
+    (time, note) => {
+      synth.triggerAttackRelease(note, '8n', time)
+    },
+    gameover_score,
+    0,
   )
 
   Tone.Transport.start()
@@ -88,8 +100,13 @@ function draw() {
     }
 
     playMusic()
-  } else {
+  } else if (isStart && !isEnd) {
     text(`Press Spacebar to start Bug Squish Game`,  canvas_width/2, canvas_height/2)
+    playIntroMusic()
+  } 
+  else if (isEnd && !isWin) {
+    text(`You lose! You didn't kill all the bugs! Your Score:  ${score}`,  canvas_width/2, canvas_height/2)
+    playGameoverMusic()
   }
 }
 
@@ -97,6 +114,7 @@ function keyPressed() {
   if (keyCode == 32) {
     // space
     isStart = false
+    sequence_intro.stop()
   }
 }
 
@@ -136,7 +154,7 @@ function Walker(imageName, x, y, moving, isAlive) {
         }
       }
     } else {
-      // dead bug
+      // gameover bug
       image(
         this.spriteSheet,
         0,
@@ -204,6 +222,7 @@ function countdown() {
   }
   if (timer == 0 && !isWin) {
     text('GAME OVER', width / 2, height * 0.7)
+    playGameoverMusic()
     endGame()
   }
   if (score == count) {
@@ -223,11 +242,22 @@ function playMusic() {
   if (frameCount % 60 == 0 && !isEnd) {
     Tone.Transport.bpm.value++
   }
-  if (!isStart && !isEnd) sequence.start()
+  if (!isStart && !isEnd)
+    sequence.start()
+  else
+    sequence.stop()
 }
 
 function playIntroMusic() {
-  if (isStart) sequence2.start()
+  if (isStart) sequence_intro.start()
+}
+
+function playGameoverMusic() {
+  sequence.stop()
+  if (isEnd && !isWin) {
+    player.start();
+  }
+    // sequence_gameover.start()
 }
 
 function make_poly() {
